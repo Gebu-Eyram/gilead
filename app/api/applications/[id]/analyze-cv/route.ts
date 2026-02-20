@@ -7,7 +7,6 @@ type Params = { params: Promise<{ id: string }> };
 // Structured output schema for the CV analysis
 interface CVAnalysisResult {
   score: number; // 0-100
-  status: "passed" | "rejected" | "pending";
   review: string; // detailed feedback
   strengths: string[];
   weaknesses: string[];
@@ -15,8 +14,11 @@ interface CVAnalysisResult {
 }
 
 const llm = new ChatOpenAI({
-  model: "gpt-4o-mini",
-  apiKey: process.env.OPENAI_API_KEY,
+  model: "grok-4-1-fast-reasoning",
+  apiKey: process.env.XAI_API_KEY,
+  configuration: {
+    baseURL: "https://api.x.ai/v1",
+  },
 });
 
 // POST /api/applications/[id]/analyze-cv
@@ -190,7 +192,6 @@ Analyze this CV against the job posting and provide your structured evaluation a
         .from("application_progress")
         .update({
           score: analysisResult.score,
-          status: analysisResult.status,
           review: analysisResult.review,
         })
         .eq("id", existingProgress.id)
@@ -212,7 +213,6 @@ Analyze this CV against the job posting and provide your structured evaluation a
           user_id: application.user_id,
           step_id: stepId,
           score: analysisResult.score,
-          status: analysisResult.status,
           review: analysisResult.review,
         })
         .select("*, recruitment_step:recruitment_steps(*)")

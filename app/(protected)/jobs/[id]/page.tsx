@@ -419,73 +419,11 @@ export default function ApplicantJobPage() {
                         {stepProgress ? (
                           <div className="mt-4 space-y-3 pt-4 border-t">
                             <div className="flex items-center gap-3">
-                              {getProgressIcon(stepProgress.status)}
-                              <span className="text-sm font-medium capitalize">
-                                {stepProgress.status}
+                              <CheckCircle2 className="size-5 text-green-600" />
+                              <span className="text-sm font-medium">
+                                Submitted
                               </span>
                             </div>
-
-                            {stepProgress.score !== null &&
-                              stepProgress.score !== undefined && (
-                                <div>
-                                  <p className="text-sm text-muted-foreground mb-1">
-                                    Score
-                                  </p>
-                                  <div className="flex items-center gap-2">
-                                    <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-                                      <div
-                                        className="h-full bg-blue-600"
-                                        style={{
-                                          width: `${Math.min((stepProgress.score / 100) * 100, 100)}%`,
-                                        }}
-                                      />
-                                    </div>
-                                    <span className="text-sm font-medium">
-                                      {stepProgress.score}%
-                                    </span>
-                                  </div>
-                                </div>
-                              )}
-
-                            {stepProgress.review && (
-                              <div>
-                                <p className="text-sm font-medium mb-1">
-                                  Feedback
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                  {stepProgress.review}
-                                </p>
-                              </div>
-                            )}
-
-                            {step.release_results && (
-                              <div className="text-xs text-green-700 bg-green-50 rounded px-2 py-1 inline-block">
-                                Results Released
-                              </div>
-                            )}
-
-                            {/* Re-upload CV option for CV review steps */}
-                            {step.step_type === "CV review" && application && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="mt-2"
-                                disabled={isExtracting}
-                                onClick={() => handleCvUpload(step.id)}
-                              >
-                                {isExtracting && uploadingStepId === step.id ? (
-                                  <>
-                                    <Loader2 className="size-4 animate-spin" />
-                                    Extracting...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Upload className="size-4" />
-                                    Re-upload CV
-                                  </>
-                                )}
-                              </Button>
-                            )}
                           </div>
                         ) : (
                           <div className="mt-4 pt-4 border-t">
