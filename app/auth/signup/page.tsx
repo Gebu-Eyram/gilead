@@ -259,28 +259,6 @@ export default function SignUpPage() {
           />
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            I am signing up as
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            {(["applicant", "admin"] as UserRole[]).map((r) => (
-              <button
-                key={r}
-                type="button"
-                onClick={() => setRole(r)}
-                className={`rounded-lg border px-3 py-2 text-sm font-medium capitalize transition-colors ${
-                  role === r
-                    ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-50 dark:bg-zinc-50 dark:text-zinc-900"
-                    : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
-                }`}
-              >
-                {r}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {error && (
           <p className="rounded-lg bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 px-3 py-2 text-sm text-red-600 dark:text-red-400">
             {error}

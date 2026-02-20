@@ -107,6 +107,17 @@ export default function AdminJobPage({ params }: JobPageProps) {
     "accept" | "reject" | null
   >(null);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [interviewType, setInterviewType] = useState<
+    "technical" | "behavioral" | "case-study"
+  >("technical");
+  const [generatedContent, setGeneratedContent] = useState<string>("");
+  const [isGeneratingInterview, setIsGeneratingInterview] = useState(false);
+  const [aptitudeType, setAptitudeType] = useState<
+    "multiple-choice" | "coding" | "logical-reasoning"
+  >("multiple-choice");
+  const [generatedAptitudeContent, setGeneratedAptitudeContent] =
+    useState<string>("");
+  const [isGeneratingAptitude, setIsGeneratingAptitude] = useState(false);
   const queryClient = useQueryClient();
 
   React.useEffect(() => {
@@ -146,6 +157,10 @@ export default function AdminJobPage({ params }: JobPageProps) {
       setStepStartsDate("");
       setStepEndsDate("");
       setReleaseResults(false);
+      setGeneratedContent("");
+      setInterviewType("technical");
+      setGeneratedAptitudeContent("");
+      setAptitudeType("multiple-choice");
       setSheetOpen(false);
     },
     onError: (err) => {
@@ -225,13 +240,110 @@ export default function AdminJobPage({ params }: JobPageProps) {
       setStepStartsDate("");
       setStepEndsDate("");
       setReleaseResults(false);
+      setGeneratedContent("");
+      setInterviewType("technical");
+      setGeneratedAptitudeContent("");
+      setAptitudeType("multiple-choice");
     },
     onError: (err) => {
       toast.error(err.message);
     },
   });
 
-  // Update application progress status (accept/reject)
+  // Generate interview questions
+  const { mutate: generateInterview } = useMutation({
+    mutationFn: async () => {
+      if (!job?.company?.name || !job?.title) {
+        throw new Error("Missing required information");
+      }
+      setIsGeneratingInterview(true);
+
+      // Build role details from job data
+      const roleDetails = [
+        job.title,
+        job.description,
+        job.requirements,
+        job.experience_level && `Experience Level: ${job.experience_level}`,
+        job.department && `Department: ${job.department}`,
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      const res = await fetch(
+        `/api/jobs/${jobId}/steps/${editStepId || "new"}/generate-interview`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            interviewType,
+            companyName: job.company.name,
+            role: job.title,
+            roleDetails,
+          }),
+        },
+      );
+      if (!res.ok) throw new Error("Failed to generate interview questions");
+      const data = await res.json();
+      return data.content;
+    },
+    onSuccess: (content) => {
+      setGeneratedContent(content);
+      setIsGeneratingInterview(false);
+      toast.success("Interview questions generated successfully!");
+    },
+    onError: (err) => {
+      setIsGeneratingInterview(false);
+      toast.error(err.message || "Failed to generate questions");
+    },
+  });
+
+  // Generate aptitude questions
+  const { mutate: generateAptitude } = useMutation({
+    mutationFn: async () => {
+      if (!job?.company?.name || !job?.title) {
+        throw new Error("Missing required information");
+      }
+      setIsGeneratingAptitude(true);
+
+      // Build role details from job data
+      const roleDetails = [
+        job.title,
+        job.description,
+        job.requirements,
+        job.experience_level && `Experience Level: ${job.experience_level}`,
+        job.department && `Department: ${job.department}`,
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      const res = await fetch(
+        `/api/jobs/${jobId}/steps/${editStepId || "new"}/generate-aptitude`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            aptitudeType,
+            companyName: job.company.name,
+            role: job.title,
+            roleDetails,
+          }),
+        },
+      );
+      if (!res.ok) throw new Error("Failed to generate aptitude questions");
+      const data = await res.json();
+      return data.content;
+    },
+    onSuccess: (content) => {
+      setGeneratedAptitudeContent(content);
+      setIsGeneratingAptitude(false);
+      toast.success("Aptitude questions generated successfully!");
+    },
+    onError: (err) => {
+      setIsGeneratingAptitude(false);
+      toast.error(err.message || "Failed to generate questions");
+    },
+  });
+
   const { mutate: updateApplicationStatus, isPending: statusUpdatingApp } =
     useMutation({
       mutationFn: async (data: { status: "accepted" | "rejected" }) => {
@@ -505,14 +617,18 @@ export default function AdminJobPage({ params }: JobPageProps) {
                                   : "",
                               );
                               setReleaseResults(step.release_results ?? false);
+                              // Load existing content if it's an Interview step
+                              if (step.step_type === "Interview") {
+                                setGeneratedContent(step.content || "");
+                                setInterviewType("technical");
+                              } else if (step.step_type === "Aptitude") {
+                                setGeneratedAptitudeContent(step.content || "");
+                                setAptitudeType("multiple-choice");
+                              }
                               setEditSheetOpen(true);
                             }}
-                            disabled={hasApplicationProgress}
-                            title={
-                              hasApplicationProgress
-                                ? "Cannot edit: applicants are using this step"
-                                : "Edit this step"
-                            }
+                            disabled={false}
+                            title="Edit this step"
                           >
                             <Edit className="size-4" />
                           </Button>
@@ -583,6 +699,12 @@ export default function AdminJobPage({ params }: JobPageProps) {
                         starts: stepStartsDate || undefined,
                         ends: stepEndsDate || undefined,
                         release_results: releaseResults,
+                        content:
+                          selectedStepType === "Interview"
+                            ? generatedContent || null
+                            : selectedStepType === "Aptitude"
+                              ? generatedAptitudeContent || null
+                              : null,
                       } as Omit<CreateRecruitmentStepInput, "job_id">);
                     }}
                     className="flex-1 overflow-y-auto space-y-6 py-4 px-4 pr-1"
@@ -695,6 +817,144 @@ export default function AdminJobPage({ params }: JobPageProps) {
                         step
                       </p>
                     </div>
+
+                    {/* Interview Generation Section */}
+                    {selectedStepType === "Interview" && (
+                      <div className="space-y-4 p-4 rounded-lg border bg-blue-50 dark:bg-blue-950/20">
+                        <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+                          Generate Interview Questions
+                        </p>
+
+                        <div className="space-y-3">
+                          <div>
+                            <Label htmlFor="interview-type" className="text-sm">
+                              Interview Type
+                            </Label>
+                            <Select
+                              value={interviewType}
+                              onValueChange={(value) =>
+                                setInterviewType(
+                                  value as
+                                    | "technical"
+                                    | "behavioral"
+                                    | "case-study",
+                                )
+                              }
+                            >
+                              <SelectTrigger
+                                id="interview-type"
+                                className="mt-2"
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="technical">
+                                  Technical Interview
+                                </SelectItem>
+                                <SelectItem value="behavioral">
+                                  Behavioral Interview
+                                </SelectItem>
+                                <SelectItem value="case-study">
+                                  Case Study Interview
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full"
+                            disabled={isGeneratingInterview}
+                            onClick={() => generateInterview()}
+                          >
+                            {isGeneratingInterview
+                              ? "Generating Questions..."
+                              : "Generate Questions"}
+                          </Button>
+
+                          {generatedContent && (
+                            <div className="space-y-2">
+                              <p className="text-xs font-medium text-muted-foreground">
+                                Generated Questions Preview:
+                              </p>
+                              <div className="p-3 rounded-md bg-background border text-sm text-muted-foreground max-h-48 overflow-y-auto whitespace-pre-wrap text-xs">
+                                {generatedContent}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Aptitude Generation Section */}
+                    {selectedStepType === "Aptitude" && (
+                      <div className="space-y-4 p-4 rounded-lg border bg-purple-50 dark:bg-purple-950/20">
+                        <p className="text-sm font-semibold text-purple-900 dark:text-purple-100">
+                          Generate Aptitude Questions
+                        </p>
+
+                        <div className="space-y-3">
+                          <div>
+                            <Label htmlFor="aptitude-type" className="text-sm">
+                              Aptitude Type
+                            </Label>
+                            <Select
+                              value={aptitudeType}
+                              onValueChange={(value) =>
+                                setAptitudeType(
+                                  value as
+                                    | "multiple-choice"
+                                    | "coding"
+                                    | "logical-reasoning",
+                                )
+                              }
+                            >
+                              <SelectTrigger
+                                id="aptitude-type"
+                                className="mt-2"
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="multiple-choice">
+                                  Multiple Choice
+                                </SelectItem>
+                                <SelectItem value="coding">
+                                  Coding Problems
+                                </SelectItem>
+                                <SelectItem value="logical-reasoning">
+                                  Logical Reasoning
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full"
+                            disabled={isGeneratingAptitude}
+                            onClick={() => generateAptitude()}
+                          >
+                            {isGeneratingAptitude
+                              ? "Generating Questions..."
+                              : "Generate Questions"}
+                          </Button>
+
+                          {generatedAptitudeContent && (
+                            <div className="space-y-2">
+                              <p className="text-xs font-medium text-muted-foreground">
+                                Generated Questions Preview:
+                              </p>
+                              <div className="p-3 rounded-md bg-background border text-sm text-muted-foreground max-h-48 overflow-y-auto whitespace-pre-wrap text-xs">
+                                {generatedAptitudeContent}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </form>
 
                   <SheetFooter className="border-t pt-4 flex flex-row items-center justify-end">
@@ -742,6 +1002,12 @@ export default function AdminJobPage({ params }: JobPageProps) {
                       starts: stepStartsDate || undefined,
                       ends: stepEndsDate || undefined,
                       release_results: releaseResults,
+                      content:
+                        selectedStepType === "Interview"
+                          ? generatedContent || null
+                          : selectedStepType === "Aptitude"
+                            ? generatedAptitudeContent || null
+                            : null,
                     },
                   });
                 }}
@@ -852,6 +1118,147 @@ export default function AdminJobPage({ params }: JobPageProps) {
                     If enabled, candidates will see their results for this step
                   </p>
                 </div>
+
+                {/* Interview Generation Section for Edit */}
+                {selectedStepType === "Interview" && (
+                  <div className="space-y-4 p-4 rounded-lg border bg-blue-50 dark:bg-blue-950/20">
+                    <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+                      Generate Interview Questions
+                    </p>
+
+                    <div className="space-y-3">
+                      <div>
+                        <Label
+                          htmlFor="edit-interview-type"
+                          className="text-sm"
+                        >
+                          Interview Type
+                        </Label>
+                        <Select
+                          value={interviewType}
+                          onValueChange={(value) =>
+                            setInterviewType(
+                              value as
+                                | "technical"
+                                | "behavioral"
+                                | "case-study",
+                            )
+                          }
+                        >
+                          <SelectTrigger
+                            id="edit-interview-type"
+                            className="mt-2"
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="technical">
+                              Technical Interview
+                            </SelectItem>
+                            <SelectItem value="behavioral">
+                              Behavioral Interview
+                            </SelectItem>
+                            <SelectItem value="case-study">
+                              Case Study Interview
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        disabled={isGeneratingInterview}
+                        onClick={() => generateInterview()}
+                      >
+                        {isGeneratingInterview
+                          ? "Generating Questions..."
+                          : "Generate Questions"}
+                      </Button>
+
+                      {generatedContent && (
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground">
+                            Generated Questions Preview:
+                          </p>
+                          <div className="p-3 rounded-md bg-background border text-sm text-muted-foreground max-h-48 overflow-y-auto whitespace-pre-wrap text-xs">
+                            {generatedContent}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Aptitude Generation Section for Edit */}
+                {selectedStepType === "Aptitude" && (
+                  <div className="space-y-4 p-4 rounded-lg border bg-purple-50 dark:bg-purple-950/20">
+                    <p className="text-sm font-semibold text-purple-900 dark:text-purple-100">
+                      Generate Aptitude Questions
+                    </p>
+
+                    <div className="space-y-3">
+                      <div>
+                        <Label htmlFor="edit-aptitude-type" className="text-sm">
+                          Aptitude Type
+                        </Label>
+                        <Select
+                          value={aptitudeType}
+                          onValueChange={(value) =>
+                            setAptitudeType(
+                              value as
+                                | "multiple-choice"
+                                | "coding"
+                                | "logical-reasoning",
+                            )
+                          }
+                        >
+                          <SelectTrigger
+                            id="edit-aptitude-type"
+                            className="mt-2"
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="multiple-choice">
+                              Multiple Choice
+                            </SelectItem>
+                            <SelectItem value="coding">
+                              Coding Problems
+                            </SelectItem>
+                            <SelectItem value="logical-reasoning">
+                              Logical Reasoning
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        disabled={isGeneratingAptitude}
+                        onClick={() => generateAptitude()}
+                      >
+                        {isGeneratingAptitude
+                          ? "Generating Questions..."
+                          : "Generate Questions"}
+                      </Button>
+
+                      {generatedAptitudeContent && (
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground">
+                            Generated Questions Preview:
+                          </p>
+                          <div className="p-3 rounded-md bg-background border text-sm text-muted-foreground max-h-48 overflow-y-auto whitespace-pre-wrap text-xs">
+                            {generatedAptitudeContent}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </form>
 
               <SheetFooter className="border-t pt-4 flex flex-row items-center justify-end">

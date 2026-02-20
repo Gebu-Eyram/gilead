@@ -28,11 +28,16 @@ export async function POST(request: NextRequest, { params }: Params) {
 
   const { data, error } = await supabase
     .from("recruitment_steps")
-    .insert({ ...body, job_id: id })
+    .insert({
+      ...body,
+      job_id: id,
+      release_results: body.release_results ?? false,
+    })
     .select()
     .single();
 
   if (error) {
+    console.error("Error creating recruitment step:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 

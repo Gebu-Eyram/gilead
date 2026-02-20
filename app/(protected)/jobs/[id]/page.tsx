@@ -497,8 +497,7 @@ export default function ApplicantJobPage() {
                                       </div>
 
                                       {analysisResult.strengths &&
-                                        analysisResult.strengths.length >
-                                          0 && (
+                                        analysisResult.strengths.length > 0 && (
                                           <div>
                                             <p className="text-xs font-medium mb-1">
                                               Strengths

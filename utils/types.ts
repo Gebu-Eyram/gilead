@@ -40,6 +40,7 @@ export interface RecruitmentStep {
   step_order: number;
   starts: string | null;
   ends: string | null;
+  content: string | null;
   release_results: boolean;
 }
 
@@ -172,6 +173,7 @@ export interface CreateRecruitmentStepInput {
   starts?: string;
   ends?: string;
   release_results?: boolean;
+  content?: string | null;
 }
 
 export interface CreateApplicationInput {
