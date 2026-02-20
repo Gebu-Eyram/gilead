@@ -24,13 +24,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+} from "@/components/ui/empty";
 import {
   Briefcase,
   Building2,
@@ -42,6 +41,7 @@ import {
   Globe,
   Zap,
   Heart,
+  LockIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -197,7 +197,7 @@ export default function SharedJobPage() {
           {/* Status badge */}
           <div className="flex items-start justify-between gap-4 mb-4">
             <div>
-              <h1 className="text-4xl font-bold tracking-tight mb-2">
+              <h1 className="text-4xl font-medium tracking-tight mb-2">
                 {job.title}
               </h1>
               <div className="flex items-center gap-2 text-lg text-muted-foreground">
@@ -347,16 +347,31 @@ export default function SharedJobPage() {
           )}
 
           {/* CTA */}
-          <div className="pt-6">
-            <Button
-              size="lg"
-              className="w-full sm:w-auto"
-              onClick={handleApplyClick}
-              disabled={isApplying}
-            >
-              {isApplying ? "Applying..." : "Apply Now"}
-            </Button>
-          </div>
+          {job.status === "open" ? (
+            <div className="pt-6">
+              <Button
+                size="lg"
+                className="w-full sm:w-auto"
+                onClick={handleApplyClick}
+                disabled={isApplying}
+              >
+                {isApplying ? "Applying..." : "Apply Now"}
+              </Button>
+            </div>
+          ) : (
+            <Empty className="rounded-lg border border-dashed bg-muted/30 py-12">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <LockIcon className="size-6" />
+                </EmptyMedia>
+                <EmptyTitle>Position Not Available</EmptyTitle>
+                <EmptyDescription>
+                  This job position is currently closed and not accepting
+                  applications. Please check back later.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          )}
         </div>
 
         {/* Footer */}
@@ -390,15 +405,15 @@ export default function SharedJobPage() {
 
       {/* Apply Dialog */}
       <Dialog open={showApplySheet} onOpenChange={setShowApplySheet}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="px-0">
+          <DialogHeader className="border-b px-4 pb-2">
             <DialogTitle>Apply Now</DialogTitle>
             <DialogDescription>
               Submit your application for {job?.title}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 p-4">
             <div className="space-y-2">
               <p className="text-sm font-semibold">Job Title</p>
               <p className="text-sm text-muted-foreground">{job?.title}</p>
@@ -418,7 +433,7 @@ export default function SharedJobPage() {
             </div>
           </div>
 
-          <div className="flex gap-2 justify-end">
+          <div className="flex gap-2 justify-end px-4">
             <Button
               type="button"
               variant="outline"

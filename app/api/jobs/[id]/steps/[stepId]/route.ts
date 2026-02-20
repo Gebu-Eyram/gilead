@@ -52,7 +52,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
   if (countError) {
     return NextResponse.json(
       { error: "Failed to check step usage" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -60,7 +60,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
   if (progressData && progressData.length > 0) {
     return NextResponse.json(
       { error: "Cannot delete step that has been used by applicants" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
