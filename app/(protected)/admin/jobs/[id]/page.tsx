@@ -257,16 +257,15 @@ export default function AdminJobPage({ params }: JobPageProps) {
   const appCount = job.applications?.length || 0;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 max-w-6xl w-full mx-auto">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-2 flex-1">
           <div className="flex items-center gap-3">
-            <div className="size-12 rounded-xl bg-muted flex items-center justify-center">
-              <Briefcase className="size-6 text-muted-foreground" />
-            </div>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">{job.title}</h1>
+              <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
+                {job.title}
+              </h1>
               <p className="text-sm text-muted-foreground mt-1">
                 {job.company?.name}
               </p>

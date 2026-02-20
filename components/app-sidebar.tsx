@@ -6,7 +6,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Building2 } from "lucide-react";
 
 import { NavMain } from "@/components/nav-main";
-import { NavProjects } from "@/components/nav-projects";
 import { NavUser } from "@/components/nav-user";
 import { TeamSwitcher } from "@/components/team-switcher";
 import {
@@ -107,7 +106,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       )}
       <SidebarContent>
         <NavMain />
-        <NavProjects />
       </SidebarContent>
       <SidebarFooter>
         <NavUser />
