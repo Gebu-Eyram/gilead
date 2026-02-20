@@ -92,21 +92,32 @@ export async function POST(request: NextRequest, { params }: Params) {
     const job = application.job;
 
     // 3. Build the prompt for AI analysis
-    const systemPrompt = `You are an expert HR recruiter and CV analyst. You will analyze a candidate's CV against a job posting and provide a structured evaluation.
+    const systemPrompt = `You are an expert HR recruiter and CV analyst. You will analyze a candidate's CV against a job posting and provide a structured evaluation. Don't be shy to give 0 score if the CV is very poor, or higher scores if it's an excellent fit. Be honest and objective in your analysis. Provide constructive feedback that can help the candidate improve, even if they are not a good fit for this role.
 
 You must respond with ONLY valid JSON matching this exact schema:
 {
   "score": <number 0-100>,
-  "status": "<passed|rejected>",
-  "review": "<detailed 2-4 sentence review of the candidate's fit>",
+  "status": "<accepted|rejected>",
+  "review": " Use markdown < ## Overview 
+A  detailed conclusion on candidates strength and  suitability for the target role. 3-5 sentence review of the candidate's fit
+## Background
+Check that roles are listed in reverse chronological order, duties are described with action verbs, and achievements are quantified where possible (e.g., "increased sales by 20%"). Basically talk about the candidate's background
+## Education & Qualifications
+Confirm relevance to the job, correct formatting, and that certifications or licenses are included if required.
+## Skills
+Evaluate whether hard and soft skills are listed and match the job description keywords.
+
+## Gaps or Red Flags: Note any employment gaps, vague descriptions, or missing dates that may raise questions.
+
+>",
   "strengths": ["<strength 1>", "<strength 2>", ...],
   "weaknesses": ["<weakness 1>", "<weakness 2>", ...],
   "recommendation": "<1-2 sentence final recommendation>"
 }
 
 Scoring guidelines:
-- 80-100: Excellent fit, strong match on most requirements → status: "passed"
-- 60-79: Good fit, meets key requirements with some gaps → status: "passed"
+- 80-100: Excellent fit, strong match on most requirements → status: "accepted"
+- 60-79: Good fit, meets key requirements with some gaps → status: "accepted"
 - 40-59: Moderate fit, meets some requirements but has notable gaps → status: "rejected"
 - 0-39: Poor fit, does not meet most requirements → status: "rejected"
 
@@ -114,7 +125,7 @@ Be fair, objective, and constructive in your analysis.`;
 
     const userPrompt = `## Job Details
 **Title:** ${job.title}
-**Company:** ${job.company?.name || "N/A"}
+**Company:** ${job.company?.name || "N/A"}  
 **Type:** ${job.type}
 **Location:** ${job.location || "N/A"}
 **Remote Status:** ${job.remote_status || "N/A"}

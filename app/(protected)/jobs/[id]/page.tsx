@@ -2,8 +2,9 @@
 
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,7 +41,7 @@ function formatDate(dateStr: string) {
 
 function getProgressIcon(status: string) {
   switch (status) {
-    case "passed":
+    case "accepted":
       return <CheckCircle2 className="size-5 text-green-600" />;
     case "rejected":
       return <AlertCircle className="size-5 text-red-600" />;
@@ -53,7 +54,7 @@ function getProgressIcon(status: string) {
 
 function getProgressColor(status: string) {
   switch (status) {
-    case "passed":
+    case "accepted":
       return "bg-green-100 text-green-900";
     case "rejected":
       return "bg-red-100 text-red-900";
@@ -100,6 +101,28 @@ export default function ApplicantJobPage() {
       enabled: !!jobId && !!currentUser?.user?.id,
     });
 
+  // Auto-trigger analysis when extraction completes
+  React.useEffect(() => {
+    if (
+      extractedContent &&
+      application &&
+      !analysisResult &&
+      !analyzeCvMutation.isPending &&
+      analysisStep === "analyze"
+    ) {
+      const cvReviewStep = job?.recruitment_steps?.find(
+        (s) => s.step_type === "CV review",
+      );
+      if (cvReviewStep) {
+        analyzeCvMutation.mutate({
+          pdfContent: extractedContent,
+          stepId: cvReviewStep.id,
+          applicationId: application.id,
+        });
+      }
+    }
+  }, [extractedContent, analysisStep]);
+
   // Extract PDF content mutation
   const extractPdfMutation = useMutation({
     mutationFn: async ({ file, stepId }: { file: File; stepId: string }) => {
@@ -124,9 +147,11 @@ export default function ApplicantJobPage() {
       setUploadingStepId(null);
       // Move to step 2 after successful extraction
       setAnalysisStep("analyze");
+      toast.success("PDF extracted successfully");
     },
-    onError: () => {
+    onError: (error) => {
       setUploadingStepId(null);
+      toast.error(error.message || "Failed to extract PDF");
     },
   });
 
@@ -164,9 +189,11 @@ export default function ApplicantJobPage() {
       setAnalysisResult(data.analysis);
       // Refetch application data to show updated progress
       queryClient.invalidateQueries({ queryKey: ["application", jobId] });
+      toast.success("CV analyzed successfully!");
     },
-    onError: () => {
+    onError: (error) => {
       // Keep the extracted content even if analysis fails
+      toast.error(error.message || "Failed to analyze CV");
     },
   });
 
@@ -430,177 +457,98 @@ export default function ApplicantJobPage() {
                             {/* CV Upload for CV review steps */}
                             {step.step_type === "CV review" && application ? (
                               <div className="space-y-4">
-                                {/* Step 1: Extract PDF */}
-                                <div className="space-y-3">
-                                  <div className="flex items-center gap-2">
-                                    <div className="flex items-center justify-center size-6 rounded-full bg-blue-100 text-blue-700 text-sm font-semibold">
-                                      1
-                                    </div>
-                                    <p className="text-sm font-medium">
-                                      Extract PDF Content
-                                    </p>
-                                  </div>
-                                  {!extractedContent ? (
-                                    <>
-                                      <p className="text-sm text-muted-foreground">
-                                        Upload your CV to extract content.
-                                      </p>
-                                      <Button
-                                        variant="outline"
-                                        disabled={isExtracting}
-                                        onClick={() => handleCvUpload(step.id)}
-                                      >
-                                        {isExtracting &&
-                                        uploadingStepId === step.id ? (
-                                          <>
-                                            <Loader2 className="size-4 animate-spin" />
-                                            Extracting...
-                                          </>
-                                        ) : (
-                                          <>
-                                            <FileText className="size-4" />
-                                            Upload CV (PDF)
-                                          </>
-                                        )}
-                                      </Button>
-                                      {extractPdfMutation.isError &&
-                                        uploadingStepId === step.id && (
-                                          <p className="text-sm text-red-600">
-                                            {extractPdfMutation.error
-                                              ?.message ||
-                                              "Failed to extract PDF"}
+                                {!analysisResult ? (
+                                  <Button
+                                    disabled={isExtracting || isAnalyzing}
+                                    onClick={() => handleCvUpload(step.id)}
+                                  >
+                                    {isExtracting || isAnalyzing ? (
+                                      <>
+                                        <Loader2 className="size-4 animate-spin" />
+                                        Processing...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Upload className="size-4" />
+                                        Submit Your CV
+                                      </>
+                                    )}
+                                  </Button>
+                                ) : (
+                                  <div className="space-y-4">
+                                    {/* Analysis Results */}
+                                    <div className="space-y-3 bg-blue-50 p-4 rounded-lg border">
+                                      <h4 className="font-semibold text-sm">
+                                        Analysis Results
+                                      </h4>
+
+                                      <div className="flex items-center gap-3">
+                                        <div className="text-3xl font-bold text-blue-600">
+                                          {analysisResult.score}%
+                                        </div>
+                                        <div>
+                                          <p className="text-sm font-medium capitalize">
+                                            Status: {analysisResult.status}
                                           </p>
-                                        )}
-                                    </>
-                                  ) : (
-                                    <div className="flex items-center gap-2 text-green-600">
-                                      <CheckCircle2 className="size-5" />
-                                      <p className="text-sm font-medium">
-                                        PDF extracted successfully
-                                      </p>
-                                    </div>
-                                  )}
-                                </div>
-
-                                {/* Divider */}
-                                {extractedContent && (
-                                  <div className="border-t pt-4">
-                                    {/* Step 2: Analyze CV */}
-                                    <div className="space-y-3">
-                                      <div className="flex items-center gap-2">
-                                        <div className="flex items-center justify-center size-6 rounded-full bg-blue-100 text-blue-700 text-sm font-semibold">
-                                          2
+                                          <p className="text-xs text-muted-foreground">
+                                            {analysisResult.review}
+                                          </p>
                                         </div>
-                                        <p className="text-sm font-medium">
-                                          Analyze CV
-                                        </p>
                                       </div>
-                                      <p className="text-sm text-muted-foreground">
-                                        Analyze your CV against the job
-                                        requirements using AI.
-                                      </p>
-                                      <Button
-                                        variant="default"
-                                        disabled={isAnalyzing}
-                                        onClick={() => handleAnalyzeCv(step.id)}
-                                      >
-                                        {isAnalyzing ? (
-                                          <>
-                                            <Loader2 className="size-4 animate-spin" />
-                                            Analyzing...
-                                          </>
-                                        ) : (
-                                          <>
-                                            <Upload className="size-4" />
-                                            Analyze CV
-                                          </>
-                                        )}
-                                      </Button>
-                                      {analyzeCvMutation.isError && (
-                                        <p className="text-sm text-red-600">
-                                          {analyzeCvMutation.error?.message ||
-                                            "Failed to analyze CV"}
-                                        </p>
-                                      )}
 
-                                      {/* Analysis Results */}
-                                      {analysisResult && (
-                                        <div className="space-y-3 pt-3 border-t bg-blue-50 p-3 rounded-lg">
-                                          <h4 className="font-semibold text-sm">
-                                            Analysis Results
-                                          </h4>
-
-                                          <div className="flex items-center gap-3">
-                                            <div className="text-3xl font-bold text-blue-600">
-                                              {analysisResult.score}%
-                                            </div>
-                                            <div>
-                                              <p className="text-sm font-medium capitalize">
-                                                Status: {analysisResult.status}
-                                              </p>
-                                              <p className="text-xs text-muted-foreground">
-                                                {analysisResult.review}
-                                              </p>
-                                            </div>
+                                      {analysisResult.strengths &&
+                                        analysisResult.strengths.length >
+                                          0 && (
+                                          <div>
+                                            <p className="text-xs font-medium mb-1">
+                                              Strengths
+                                            </p>
+                                            <ul className="text-xs text-muted-foreground list-disc list-inside">
+                                              {analysisResult.strengths.map(
+                                                (s: string, i: number) => (
+                                                  <li key={i}>{s}</li>
+                                                ),
+                                              )}
+                                            </ul>
                                           </div>
+                                        )}
 
-                                          {analysisResult.strengths &&
-                                            analysisResult.strengths.length >
-                                              0 && (
-                                              <div>
-                                                <p className="text-xs font-medium mb-1">
-                                                  Strengths
-                                                </p>
-                                                <ul className="text-xs text-muted-foreground list-disc list-inside">
-                                                  {analysisResult.strengths.map(
-                                                    (s: string, i: number) => (
-                                                      <li key={i}>{s}</li>
-                                                    ),
-                                                  )}
-                                                </ul>
-                                              </div>
-                                            )}
+                                      {analysisResult.weaknesses &&
+                                        analysisResult.weaknesses.length >
+                                          0 && (
+                                          <div>
+                                            <p className="text-xs font-medium mb-1">
+                                              Areas for Improvement
+                                            </p>
+                                            <ul className="text-xs text-muted-foreground list-disc list-inside">
+                                              {analysisResult.weaknesses.map(
+                                                (w: string, i: number) => (
+                                                  <li key={i}>{w}</li>
+                                                ),
+                                              )}
+                                            </ul>
+                                          </div>
+                                        )}
 
-                                          {analysisResult.weaknesses &&
-                                            analysisResult.weaknesses.length >
-                                              0 && (
-                                              <div>
-                                                <p className="text-xs font-medium mb-1">
-                                                  Areas for Improvement
-                                                </p>
-                                                <ul className="text-xs text-muted-foreground list-disc list-inside">
-                                                  {analysisResult.weaknesses.map(
-                                                    (w: string, i: number) => (
-                                                      <li key={i}>{w}</li>
-                                                    ),
-                                                  )}
-                                                </ul>
-                                              </div>
-                                            )}
-
-                                          {analysisResult.recommendation && (
-                                            <div>
-                                              <p className="text-xs font-medium mb-1">
-                                                Recommendation
-                                              </p>
-                                              <p className="text-xs text-muted-foreground">
-                                                {analysisResult.recommendation}
-                                              </p>
-                                            </div>
-                                          )}
-
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() =>
-                                              handleResetAnalysis()
-                                            }
-                                          >
-                                            Start Over
-                                          </Button>
+                                      {analysisResult.recommendation && (
+                                        <div>
+                                          <p className="text-xs font-medium mb-1">
+                                            Recommendation
+                                          </p>
+                                          <p className="text-xs text-muted-foreground">
+                                            {analysisResult.recommendation}
+                                          </p>
                                         </div>
                                       )}
                                     </div>
+
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleResetAnalysis()}
+                                    >
+                                      Submit Again
+                                    </Button>
                                   </div>
                                 )}
                               </div>
@@ -625,18 +573,6 @@ export default function ApplicantJobPage() {
           </div>
         )}
       </div>
-
-      {/* Job Description */}
-      {extractedContent && (
-        <div className="space-y-3">
-          <h2 className="text-2xl font-bold">Extracted PDF Content</h2>
-          <div className="rounded-lg border bg-card p-6">
-            <div className="prose prose-sm max-w-none text-muted-foreground whitespace-pre-wrap max-h-96 overflow-y-auto">
-              {extractedContent}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Job Description */}
       <div className="space-y-3">

@@ -210,7 +210,7 @@ export type ApplicationStatus =
   | "rejected"
   | "withdrawn";
 
-export type ProgressStatus = "pending" | "passed" | "failed" | "withdrawn";
+export type ProgressStatus = "pending" | "accepted" | "rejected";
 
 export type StepType = "CV review" | "Aptitude" | "Interview";
 

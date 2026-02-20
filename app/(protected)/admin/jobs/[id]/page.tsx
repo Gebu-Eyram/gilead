@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import ReactMarkdown from "react-markdown";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -100,6 +101,12 @@ export default function AdminJobPage({ params }: JobPageProps) {
   const [editStepId, setEditStepId] = useState<string | null>(null);
   const [editSheetOpen, setEditSheetOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [selectedReview, setSelectedReview] = useState<any>(null);
+  const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<
+    "accept" | "reject" | null
+  >(null);
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const queryClient = useQueryClient();
 
   React.useEffect(() => {
@@ -224,6 +231,44 @@ export default function AdminJobPage({ params }: JobPageProps) {
     },
   });
 
+  // Update application progress status (accept/reject)
+  const { mutate: updateApplicationStatus, isPending: statusUpdatingApp } =
+    useMutation({
+      mutationFn: async (data: { status: "accepted" | "rejected" }) => {
+        if (!selectedAppId || !selectedReview?.id)
+          throw new Error("Missing required data");
+        const res = await fetch(
+          `/api/applications/${selectedAppId}/progress/${selectedReview.id}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: data.status }),
+          },
+        );
+        if (!res.ok) throw new Error("Failed to update application status");
+        return res.json();
+      },
+      onMutate: (variables) => {
+        setPendingAction(variables.status === "accepted" ? "accept" : "reject");
+      },
+      onSuccess: (_, variables) => {
+        queryClient.invalidateQueries({ queryKey: ["job", jobId] });
+        toast.success(
+          variables.status === "accepted"
+            ? "Application accepted successfully"
+            : "Application rejected successfully",
+        );
+        setReviewDialogOpen(false);
+        setSelectedReview(null);
+        setSelectedAppId(null);
+        setPendingAction(null);
+      },
+      onError: (err) => {
+        toast.error(err.message);
+        setPendingAction(null);
+      },
+    });
+
   if (jobLoading || !job) {
     return (
       <div className="flex flex-col gap-4">
@@ -344,16 +389,24 @@ export default function AdminJobPage({ params }: JobPageProps) {
       </div>
 
       {/* Tabs Section */}
-      <Tabs defaultValue="steps" className="space-y-4">
+      <Tabs defaultValue="setup" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="steps">
-            Recruitment Steps ({job.recruitment_steps?.length || 0})
-          </TabsTrigger>
-          <TabsTrigger value="applicants">Applicants ({appCount})</TabsTrigger>
+          <TabsTrigger value="setup">Setup</TabsTrigger>
+          {job.recruitment_steps
+            ?.sort((a, b) => a.step_order - b.step_order)
+            .map((step) => (
+              <TabsTrigger key={step.id} value={step.id}>
+                {getStepTypeLabel(step.step_type)} (
+                {job.applications?.filter((app) =>
+                  app.progress?.some((p) => p.step_id === step.id),
+                ).length || 0}
+                )
+              </TabsTrigger>
+            ))}
         </TabsList>
 
-        {/* Steps Tab */}
-        <TabsContent value="steps" className="space-y-6">
+        {/* Setup Tab */}
+        <TabsContent value="setup" className="space-y-6">
           {/* Current Steps */}
           <div className="space-y-4">
             <div>
@@ -825,99 +878,126 @@ export default function AdminJobPage({ params }: JobPageProps) {
         </TabsContent>
 
         {/* Applicants Tab */}
-        <TabsContent value="applicants" className="space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold">Applicants</h2>
-            <p className="text-sm text-muted-foreground">
-              {appCount} {appCount === 1 ? "applicant" : "applicants"}
-            </p>
-          </div>
+        {job.recruitment_steps
+          ?.sort((a, b) => a.step_order - b.step_order)
+          .map((step) => {
+            const applicantsForStep =
+              job.applications?.filter((app) =>
+                app.progress?.some((p) => p.step_id === step.id),
+              ) || [];
 
-          {appCount === 0 ? (
-            <div className="rounded-lg border border-dashed p-8 text-center">
-              <p className="text-sm text-muted-foreground">No applicants yet</p>
-            </div>
-          ) : (
-            <div className="rounded-lg border overflow-hidden">
-              <Table>
-                <TableHeader className="bg-muted/50">
-                  <TableRow>
-                    <TableHead className="font-semibold">Name</TableHead>
-                    <TableHead className="font-semibold">Email</TableHead>
-                    <TableHead className="font-semibold">Status</TableHead>
-                    <TableHead className="font-semibold">Progress</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {job.applications?.map((app) => (
-                    <TableRow key={app.id} className="hover:bg-muted/50">
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback className="text-xs font-medium">
-                              {getInitials(app.applicant?.name || "?")}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="font-medium">
-                            {app.applicant?.name}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {app.applicant?.email}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            app.status === "selected"
-                              ? "default"
-                              : app.status === "rejected"
-                                ? "destructive"
-                                : "secondary"
-                          }
-                          className="capitalize"
-                        >
-                          {app.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {app.progress && app.progress.length > 0 ? (
-                          <div className="space-y-1">
-                            {app.progress.slice(0, 2).map((p) => (
-                              <div
-                                key={p.id}
-                                className="flex items-center gap-2 text-xs"
-                              >
-                                <span className="text-muted-foreground">
-                                  {p.recruitment_step?.step_type}:
-                                </span>
+            return (
+              <TabsContent key={step.id} value={step.id} className="space-y-4">
+                <div>
+                  <h2 className="text-lg font-semibold">
+                    {getStepTypeLabel(step.step_type)}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    {applicantsForStep.length}{" "}
+                    {applicantsForStep.length === 1
+                      ? "applicant"
+                      : "applicants"}
+                  </p>
+                </div>
+
+                {applicantsForStep.length === 0 ? (
+                  <div className="rounded-lg border border-dashed p-8 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      No applicants in this step yet
+                    </p>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border overflow-hidden">
+                    <Table>
+                      <TableHeader className="bg-muted/50">
+                        <TableRow>
+                          <TableHead className="font-semibold">Name</TableHead>
+                          <TableHead className="font-semibold">Email</TableHead>
+                          <TableHead className="font-semibold">
+                            Status
+                          </TableHead>
+                          <TableHead className="font-semibold">Score</TableHead>
+                          <TableHead className="font-semibold">
+                            Actions
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {applicantsForStep.map((app) => {
+                          const stepProgress = app.progress?.find(
+                            (p) => p.step_id === step.id,
+                          );
+
+                          return (
+                            <TableRow
+                              key={app.id}
+                              className="hover:bg-muted/50"
+                            >
+                              <TableCell>
+                                <div className="flex items-center gap-3">
+                                  <Avatar className="h-8 w-8">
+                                    <AvatarFallback className="text-xs font-medium">
+                                      {getInitials(app.applicant?.name || "?")}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span className="font-medium">
+                                    {app.applicant?.name}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-muted-foreground text-sm">
+                                {app.applicant?.email}
+                              </TableCell>
+                              <TableCell>
                                 <Badge
-                                  variant="outline"
-                                  className="capitalize text-xs"
+                                  variant={
+                                    stepProgress?.status === "accepted"
+                                      ? "default"
+                                      : stepProgress?.status === "rejected"
+                                        ? "destructive"
+                                        : "secondary"
+                                  }
+                                  className="capitalize"
                                 >
-                                  {p.status}
+                                  {stepProgress?.status || "pending"}
                                 </Badge>
-                              </div>
-                            ))}
-                            {app.progress.length > 2 && (
-                              <p className="text-xs text-muted-foreground">
-                                +{app.progress.length - 2} more
-                              </p>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            Not started
-                          </span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </TabsContent>
+                              </TableCell>
+                              <TableCell>
+                                {stepProgress?.score !== null &&
+                                stepProgress?.score !== undefined ? (
+                                  <span className="font-medium">
+                                    {stepProgress.score}%
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground text-xs">
+                                    -
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedReview(stepProgress);
+                                    setSelectedAppId(app.id);
+                                    setReviewDialogOpen(true);
+                                  }}
+                                  disabled={!stepProgress}
+                                >
+                                  Review
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </TabsContent>
+            );
+          })}
       </Tabs>
 
       {/* Status Change Dialog */}
@@ -1023,6 +1103,83 @@ export default function AdminJobPage({ params }: JobPageProps) {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Review Details Sheet */}
+      <Sheet open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+        <SheetContent className="flex flex-col sm:max-w-lg!">
+          <SheetHeader className="border-b">
+            <SheetTitle>Review Details</SheetTitle>
+            <SheetDescription>
+              Complete analysis and feedback for the candidate
+            </SheetDescription>
+          </SheetHeader>
+
+          {selectedReview && (
+            <div className="flex-1 overflow-y-auto space-y-6 p-4">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm text-muted-foreground">Score</p>
+                  <p className="text-2xl font-bold">{selectedReview.score}%</p>
+                </div>
+                <div className="w-full h-5 rounded-sm bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-sm bg-linear-to-r from-pink-500 via-orange-500 to-yellow-500"
+                    style={{
+                      width: `${selectedReview.score}%`,
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">Status</p>
+                  <Badge
+                    variant={
+                      selectedReview.status === "passed"
+                        ? "default"
+                        : selectedReview.status === "rejected"
+                          ? "destructive"
+                          : "secondary"
+                    }
+                    className="capitalize"
+                  >
+                    {selectedReview.status}
+                  </Badge>
+                </div>
+              </div> */}
+
+              {selectedReview.review && (
+                <div>
+                  <div className="text-gray-950 dark:text-gray-300 text-sm  [&_h2]:text-lg [&_h2]:font-bold [&_h2]:mt-3 [&_h2]:mb-2 [&_p]:mb-2 [&_ul]:list-disc [&_ul]:ml-4 [&_ol]:list-decimal [&_ol]:ml-4 [&_li]:mb-1 [&_li]:ml-2 [&_strong]:font-semibold [&_strong]:text-foreground [&_em]:italic">
+                    <ReactMarkdown>{selectedReview.review}</ReactMarkdown>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <SheetFooter className="border-t pt-4 flex flex-row items-center justify-end gap-2">
+            <Button
+              variant="destructive"
+              onClick={() => {
+                updateApplicationStatus({ status: "rejected" });
+              }}
+              disabled={pendingAction !== null}
+            >
+              {pendingAction === "reject" ? "Rejecting..." : "Reject"}
+            </Button>
+            <Button
+              onClick={() => {
+                updateApplicationStatus({ status: "accepted" });
+              }}
+              disabled={pendingAction !== null}
+            >
+              {pendingAction === "accept" ? "Accepting..." : "Accept"}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
