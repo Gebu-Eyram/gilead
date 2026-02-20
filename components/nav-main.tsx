@@ -79,14 +79,7 @@ export function NavMain() {
           },
         ];
       case "applicant":
-        return [
-          ...baseNav,
-          {
-            title: "Explore",
-            url: "/explore",
-            icon: Compass,
-          },
-        ];
+        return [...baseNav];
       default:
         return baseNav;
     }

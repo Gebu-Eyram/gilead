@@ -8,6 +8,13 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import {
   Building2,
@@ -22,8 +29,15 @@ import {
   FileText,
   Loader2,
   Video,
+  ArrowRight,
+  BrainCircuit,
+  FileCheck,
 } from "lucide-react";
-import type { JobFull, ApplicationForApplicant } from "@/utils/types";
+import type {
+  JobFull,
+  ApplicationForApplicant,
+  RecruitmentStep,
+} from "@/utils/types";
 
 function capitalize(str: string): string {
   return str
@@ -78,6 +92,10 @@ export default function ApplicantJobPage() {
     "extract",
   );
   const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [selectedStep, setSelectedStep] = useState<RecruitmentStep | null>(
+    null,
+  );
+  const [stepSheetOpen, setStepSheetOpen] = useState(false);
 
   const { data: job, isLoading: jobLoading } = useQuery<JobFull>({
     queryKey: ["job-applicant", jobId],
@@ -242,7 +260,7 @@ export default function ApplicantJobPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 max-w-4xl mx-auto">
+      <div className="space-y-6 max-w-5xl w-full mx-auto">
         <Skeleton className="h-8 w-32" />
         <div className="space-y-4">
           <Skeleton className="h-32 w-full" />
@@ -257,7 +275,7 @@ export default function ApplicantJobPage() {
       <div className="text-center space-y-4">
         <h1 className="text-2xl font-bold">Job not found</h1>
         <Button asChild variant="outline">
-          <Link href="/explore">Back to Jobs</Link>
+          <Link href="/dashboard">Back</Link>
         </Button>
       </div>
     );
@@ -268,7 +286,7 @@ export default function ApplicantJobPage() {
   const isAnalyzing = analyzeCvMutation.isPending;
 
   return (
-    <div className="space-y-8 max-w-4xl mx-auto">
+    <div className="space-y-8 max-w-5xl w-full mx-auto">
       {/* Hidden file input for CV uploads */}
       <input
         ref={fileInputRef}
@@ -280,9 +298,9 @@ export default function ApplicantJobPage() {
       {/* Header */}
       <div>
         <Button asChild variant="ghost" size="sm" className="mb-4">
-          <Link href="/explore" className="flex items-center gap-2">
+          <Link href="/dashboard" className="flex items-center gap-2">
             <ChevronLeft className="size-4" />
-            Back to Jobs
+            Back to Dashboard
           </Link>
         </Button>
 
@@ -350,40 +368,6 @@ export default function ApplicantJobPage() {
         </div>
       </div>
 
-      {/* Application Status */}
-      {application && (
-        <div className="rounded-lg border bg-card p-6">
-          <h2 className="font-semibold mb-4">Application Status</h2>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">
-                Application Status
-              </span>
-              <Badge
-                variant={
-                  application.status === "rejected"
-                    ? "destructive"
-                    : application.status === "selected"
-                      ? "default"
-                      : "secondary"
-                }
-                className="capitalize"
-              >
-                {application.status}
-              </Badge>
-            </div>
-            {application.general_review && (
-              <div className="pt-2 border-t">
-                <p className="text-sm font-medium mb-1">Review</p>
-                <p className="text-sm text-muted-foreground">
-                  {application.general_review}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Recruitment Steps */}
       <div className="space-y-4">
         <div>
@@ -396,182 +380,79 @@ export default function ApplicantJobPage() {
         </div>
 
         {hasSteps ? (
-          <div className="space-y-3">
+          <div className="divide-y rounded-lg border">
             {job.recruitment_steps
               ?.sort((a, b) => a.step_order - b.step_order)
-              .map((step, index) => {
+              .map((step) => {
                 const stepProgress = application?.progress?.find(
                   (p) => p.step_id === step.id,
                 );
+                const stepLabel =
+                  step.step_type === "Aptitude"
+                    ? "Aptitude Test"
+                    : step.step_type === "CV review"
+                      ? "CV Review"
+                      : "Virtual Interview";
+                const StepIcon =
+                  step.step_type === "CV review"
+                    ? FileCheck
+                    : step.step_type === "Aptitude"
+                      ? BrainCircuit
+                      : Video;
 
                 return (
-                  <div
+                  <button
                     key={step.id}
-                    className="rounded-lg border bg-card p-6 hover:shadow-sm transition-shadow"
+                    type="button"
+                    onClick={() => {
+                      setSelectedStep(step);
+                      setStepSheetOpen(true);
+                    }}
+                    className="flex items-center gap-4 w-full px-5 py-4 text-left hover:bg-muted/50 transition-colors group"
                   >
-                    <div className="flex items-start gap-4">
-                      {/* Step Number and Icon */}
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="size-10 rounded-full bg-muted flex items-center justify-center font-semibold text-sm">
-                          {step.step_order}
-                        </div>
-                      </div>
-
-                      {/* Step Details */}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-base">
-                          {step.step_type === "Aptitude"
-                            ? "Aptitude Test"
-                            : step.step_type === "CV review"
-                              ? "CV Review"
-                              : "Virtual Interview"}
-                        </h3>
-
-                        {/* Dates */}
-                        <div className="flex flex-wrap gap-4 mt-2 text-sm text-muted-foreground">
-                          {step.starts && (
-                            <div>
-                              <span className="font-medium">Starts:</span>{" "}
-                              {formatDate(step.starts)}
-                            </div>
-                          )}
-                          {step.ends && (
-                            <div>
-                              <span className="font-medium">Ends:</span>{" "}
-                              {formatDate(step.ends)}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Progress Info */}
-                        {stepProgress ? (
-                          <div className="mt-4 space-y-3 pt-4 border-t">
-                            <div className="flex items-center gap-3">
-                              <CheckCircle2 className="size-5 text-green-600" />
-                              <span className="text-sm font-medium">
-                                Submitted
-                              </span>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="mt-4 pt-4 border-t">
-                            {/* CV Upload for CV review steps */}
-                            {step.step_type === "CV review" && application ? (
-                              <div className="space-y-4">
-                                {!analysisResult ? (
-                                  <Button
-                                    disabled={isExtracting || isAnalyzing}
-                                    onClick={() => handleCvUpload(step.id)}
-                                  >
-                                    {isExtracting || isAnalyzing ? (
-                                      <>
-                                        <Loader2 className="size-4 animate-spin" />
-                                        Processing...
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Upload className="size-4" />
-                                        Submit Your CV
-                                      </>
-                                    )}
-                                  </Button>
-                                ) : (
-                                  <div className="space-y-4">
-                                    {/* Analysis Results */}
-                                    <div className="space-y-3 bg-blue-50 p-4 rounded-lg border">
-                                      <h4 className="font-semibold text-sm">
-                                        Analysis Results
-                                      </h4>
-
-                                      <div className="flex items-center gap-3">
-                                        <div className="text-3xl font-bold text-blue-600">
-                                          {analysisResult.score}%
-                                        </div>
-                                        <div>
-                                          <p className="text-sm font-medium capitalize">
-                                            Status: {analysisResult.status}
-                                          </p>
-                                          <p className="text-xs text-muted-foreground">
-                                            {analysisResult.review}
-                                          </p>
-                                        </div>
-                                      </div>
-
-                                      {analysisResult.strengths &&
-                                        analysisResult.strengths.length > 0 && (
-                                          <div>
-                                            <p className="text-xs font-medium mb-1">
-                                              Strengths
-                                            </p>
-                                            <ul className="text-xs text-muted-foreground list-disc list-inside">
-                                              {analysisResult.strengths.map(
-                                                (s: string, i: number) => (
-                                                  <li key={i}>{s}</li>
-                                                ),
-                                              )}
-                                            </ul>
-                                          </div>
-                                        )}
-
-                                      {analysisResult.weaknesses &&
-                                        analysisResult.weaknesses.length >
-                                          0 && (
-                                          <div>
-                                            <p className="text-xs font-medium mb-1">
-                                              Areas for Improvement
-                                            </p>
-                                            <ul className="text-xs text-muted-foreground list-disc list-inside">
-                                              {analysisResult.weaknesses.map(
-                                                (w: string, i: number) => (
-                                                  <li key={i}>{w}</li>
-                                                ),
-                                              )}
-                                            </ul>
-                                          </div>
-                                        )}
-
-                                      {analysisResult.recommendation && (
-                                        <div>
-                                          <p className="text-xs font-medium mb-1">
-                                            Recommendation
-                                          </p>
-                                          <p className="text-xs text-muted-foreground">
-                                            {analysisResult.recommendation}
-                                          </p>
-                                        </div>
-                                      )}
-                                    </div>
-
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleResetAnalysis()}
-                                    >
-                                      Submit Again
-                                    </Button>
-                                  </div>
-                                )}
-                              </div>
-                            ) : step.step_type === "Interview" &&
-                              application ? (
-                              <Button asChild>
-                                <Link
-                                  href={`/jobs/${jobId}/interview?stepId=${step.id}`}
-                                >
-                                  <Video className="size-4" />
-                                  Start Virtual Interview
-                                </Link>
-                              </Button>
-                            ) : (
-                              <div className="text-sm text-muted-foreground">
-                                Waiting to start this step...
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                    {/* Step number */}
+                    <div className="size-9 rounded-full bg-muted flex items-center justify-center font-semibold text-sm shrink-0">
+                      {step.step_order}
                     </div>
-                  </div>
+
+                    {/* Title & description */}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm">{stepLabel}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                        {step.starts && step.ends
+                          ? `${formatDate(step.starts)} — ${formatDate(step.ends)}`
+                          : step.starts
+                            ? `Starts ${formatDate(step.starts)}`
+                            : step.ends
+                              ? `Ends ${formatDate(step.ends)}`
+                              : "No dates set"}
+                      </p>
+                    </div>
+
+                    {/* Status badge */}
+                    {stepProgress ? (
+                      <Badge
+                        variant="outline"
+                        className={`capitalize shrink-0 ${
+                          stepProgress.status === "accepted"
+                            ? "bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/20"
+                            : stepProgress.status === "rejected"
+                              ? "bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/20"
+                              : "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                        }`}
+                      >
+                        {stepProgress.status === "pending"
+                          ? "Submitted"
+                          : stepProgress.status}
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        Not started
+                      </span>
+                    )}
+
+                    <ArrowRight className="size-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                  </button>
                 );
               })}
           </div>
@@ -584,39 +465,262 @@ export default function ApplicantJobPage() {
         )}
       </div>
 
-      {/* Job Description */}
-      <div className="space-y-3">
-        <h2 className="text-2xl font-bold">About the Role</h2>
-        <div className="rounded-lg border bg-card p-6">
-          <div className="prose prose-sm max-w-none text-muted-foreground whitespace-pre-wrap">
-            {job.description}
-          </div>
-        </div>
-      </div>
+      {/* Step Detail Sheet */}
+      <Sheet open={stepSheetOpen} onOpenChange={setStepSheetOpen}>
+        <SheetContent className="flex flex-col sm:max-w-lg!">
+          <SheetHeader className="border-b pb-4">
+            <SheetTitle>
+              {selectedStep?.step_type === "Aptitude"
+                ? "Aptitude Test"
+                : selectedStep?.step_type === "CV review"
+                  ? "CV Review"
+                  : "Virtual Interview"}
+            </SheetTitle>
+            <SheetDescription>
+              Step {selectedStep?.step_order} of{" "}
+              {job?.recruitment_steps?.length ?? 0}
+            </SheetDescription>
+          </SheetHeader>
 
-      {/* Requirements */}
-      {job.requirements && (
-        <div className="space-y-3">
-          <h2 className="text-2xl font-bold">Requirements</h2>
-          <div className="rounded-lg border bg-card p-6">
-            <div className="prose prose-sm max-w-none text-muted-foreground whitespace-pre-wrap">
-              {job.requirements}
-            </div>
-          </div>
-        </div>
-      )}
+          {selectedStep && (
+            <div className="flex-1 overflow-y-auto space-y-6 py-4">
+              {/* Dates */}
+              <div className="grid grid-cols-2 gap-4">
+                {selectedStep.starts && (
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs text-muted-foreground mb-1">
+                      Start Date
+                    </p>
+                    <p className="text-sm font-medium">
+                      {formatDate(selectedStep.starts)}
+                    </p>
+                  </div>
+                )}
+                {selectedStep.ends && (
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs text-muted-foreground mb-1">
+                      End Date
+                    </p>
+                    <p className="text-sm font-medium">
+                      {formatDate(selectedStep.ends)}
+                    </p>
+                  </div>
+                )}
+              </div>
 
-      {/* Benefits */}
-      {job.benefits && (
-        <div className="space-y-3">
-          <h2 className="text-2xl font-bold">Benefits</h2>
-          <div className="rounded-lg border bg-card p-6">
-            <div className="prose prose-sm max-w-none text-muted-foreground whitespace-pre-wrap">
-              {job.benefits}
+              {/* Progress status */}
+              {(() => {
+                const stepProgress = application?.progress?.find(
+                  (p) => p.step_id === selectedStep.id,
+                );
+
+                if (stepProgress) {
+                  return (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3 rounded-lg border p-4 bg-muted/30">
+                        {stepProgress.status === "accepted" ? (
+                          <CheckCircle2 className="size-5 text-green-600 shrink-0" />
+                        ) : stepProgress.status === "rejected" ? (
+                          <AlertCircle className="size-5 text-red-600 shrink-0" />
+                        ) : (
+                          <Clock className="size-5 text-amber-600 shrink-0" />
+                        )}
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium capitalize">
+                            {stepProgress.status === "pending"
+                              ? "Submitted — Awaiting Review"
+                              : stepProgress.status}
+                          </p>
+                          {stepProgress.score !== null &&
+                            stepProgress.score !== undefined && (
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                Score: {stepProgress.score}%
+                              </p>
+                            )}
+                        </div>
+                      </div>
+
+                      {/* Score bar */}
+                      {stepProgress.score !== null &&
+                        stepProgress.score !== undefined && (
+                          <div className="space-y-1.5">
+                            <div className="flex justify-between text-xs text-muted-foreground">
+                              <span>Score</span>
+                              <span>{stepProgress.score}%</span>
+                            </div>
+                            <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all ${
+                                  stepProgress.score >= 70
+                                    ? "bg-green-500"
+                                    : stepProgress.score >= 40
+                                      ? "bg-amber-500"
+                                      : "bg-red-500"
+                                }`}
+                                style={{
+                                  width: `${stepProgress.score}%`,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                      {/* Review text */}
+                      {stepProgress.review && (
+                        <div className="rounded-lg border p-4">
+                          <p className="text-xs font-medium text-muted-foreground mb-2">
+                            Feedback
+                          </p>
+                          <p className="text-sm whitespace-pre-wrap">
+                            {stepProgress.review}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                // Not submitted yet — show actions
+                return (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3 rounded-lg border border-dashed p-4">
+                      <Clock className="size-5 text-muted-foreground shrink-0" />
+                      <p className="text-sm text-muted-foreground">
+                        You haven&apos;t completed this step yet.
+                      </p>
+                    </div>
+
+                    {/* CV Upload */}
+                    {selectedStep.step_type === "CV review" && application ? (
+                      <div className="space-y-4">
+                        {!analysisResult ? (
+                          <Button
+                            className="w-full"
+                            disabled={isExtracting || isAnalyzing}
+                            onClick={() => handleCvUpload(selectedStep.id)}
+                          >
+                            {isExtracting || isAnalyzing ? (
+                              <>
+                                <Loader2 className="size-4 animate-spin" />
+                                Processing...
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="size-4" />
+                                Submit Your CV
+                              </>
+                            )}
+                          </Button>
+                        ) : (
+                          <div className="space-y-4">
+                            {/* Analysis Results */}
+                            <div className="space-y-3 rounded-lg border bg-blue-500/5 p-4">
+                              <h4 className="font-semibold text-sm">
+                                Analysis Results
+                              </h4>
+
+                              <div className="flex items-center gap-3">
+                                <div className="text-3xl font-bold text-blue-600">
+                                  {analysisResult.score}%
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium capitalize">
+                                    {analysisResult.status}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {analysisResult.review}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {analysisResult.strengths &&
+                                analysisResult.strengths.length > 0 && (
+                                  <div>
+                                    <p className="text-xs font-medium mb-1">
+                                      Strengths
+                                    </p>
+                                    <ul className="text-xs text-muted-foreground list-disc list-inside">
+                                      {analysisResult.strengths.map(
+                                        (s: string, i: number) => (
+                                          <li key={i}>{s}</li>
+                                        ),
+                                      )}
+                                    </ul>
+                                  </div>
+                                )}
+
+                              {analysisResult.weaknesses &&
+                                analysisResult.weaknesses.length > 0 && (
+                                  <div>
+                                    <p className="text-xs font-medium mb-1">
+                                      Areas for Improvement
+                                    </p>
+                                    <ul className="text-xs text-muted-foreground list-disc list-inside">
+                                      {analysisResult.weaknesses.map(
+                                        (w: string, i: number) => (
+                                          <li key={i}>{w}</li>
+                                        ),
+                                      )}
+                                    </ul>
+                                  </div>
+                                )}
+
+                              {analysisResult.recommendation && (
+                                <div>
+                                  <p className="text-xs font-medium mb-1">
+                                    Recommendation
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {analysisResult.recommendation}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleResetAnalysis()}
+                            >
+                              Submit Again
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ) : selectedStep.step_type === "Interview" &&
+                      application ? (
+                      <Button asChild className="w-full">
+                        <Link
+                          href={`/jobs/${jobId}/interview?stepId=${selectedStep.id}`}
+                        >
+                          <Video className="size-4" />
+                          Start Virtual Interview
+                        </Link>
+                      </Button>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Waiting to start this step...
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Job context in sheet */}
+              {job?.description && (
+                <div className="rounded-lg border p-4">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">
+                    About the Role
+                  </p>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-6">
+                    {job.description}
+                  </p>
+                </div>
+              )}
             </div>
-          </div>
-        </div>
-      )}
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

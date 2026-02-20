@@ -1,14 +1,8 @@
 "use client";
 
-import {
-  BadgeCheck,
-  Bell,
-  ChevronsUpDown,
-  CreditCard,
-  LogOut,
-  Sparkles,
-} from "lucide-react";
+import { ChevronsUpDown, LogOut, Moon, Sun, Monitor } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -33,6 +27,7 @@ import { supabase } from "@/utils/supabase";
 export function NavUser() {
   const { isMobile } = useSidebar();
   const router = useRouter();
+  const { theme, setTheme } = useTheme();
   const authUser = useUserStore((s) => s.user);
   const loading = useUserStore((s) => s.loading);
   const resetTeam = useTeamStore((s) => s.resetTeam);
@@ -117,24 +112,29 @@ export function NavUser() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <Sparkles />
-                Upgrade to Pro
+              <DropdownMenuLabel className="text-xs text-muted-foreground px-2 py-1.5">
+                Theme
+              </DropdownMenuLabel>
+              <DropdownMenuItem
+                onClick={() => setTheme("light")}
+                className={theme === "light" ? "bg-accent" : ""}
+              >
+                <Sun />
+                Light
               </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <BadgeCheck />
-                Account
+              <DropdownMenuItem
+                onClick={() => setTheme("dark")}
+                className={theme === "dark" ? "bg-accent" : ""}
+              >
+                <Moon />
+                Dark
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <CreditCard />
-                Billing
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Bell />
-                Notifications
+              <DropdownMenuItem
+                onClick={() => setTheme("system")}
+                className={theme === "system" ? "bg-accent" : ""}
+              >
+                <Monitor />
+                System
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
