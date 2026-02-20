@@ -115,6 +115,7 @@ function CreateJobSheet({ companyId }: { companyId: string }) {
     title: "",
     description: "",
     type: "full-time",
+    status: "closed",
     remote_status: "onsite",
     salary_currency: "GHC",
     openings: 1,
@@ -140,7 +141,12 @@ function CreateJobSheet({ companyId }: { companyId: string }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["jobs", companyId] });
       toast.success("Job created successfully");
-      setFormData({ title: "", description: "", type: "full-time" });
+      setFormData({
+        title: "",
+        description: "",
+        type: "full-time",
+        status: "closed",
+      });
       setOpen(false);
     },
     onError: (err) => {
@@ -512,7 +518,7 @@ function JobCard({ job }: { job: JobFull & { applications?: unknown[] } }) {
       </Dialog>
 
       <Link
-        href={`/jobs/${job.id}`}
+        href={`/admin/jobs/${job.id}`}
         className="group rounded-lg -m-5 p-5 hover:bg-muted/50 transition-colors flex flex-col gap-3"
       >
         {/* Header: Title, Type, Status */}

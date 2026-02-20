@@ -1,5 +1,3 @@
-
-
 export interface User {
   id: string;
   name: string;
@@ -280,6 +278,7 @@ export interface CreateJobInput {
   description?: string;
   type: JobType;
   company_id: string;
+  status?: JobStatus;
   requirements?: string;
   salary_min?: number;
   salary_max?: number;

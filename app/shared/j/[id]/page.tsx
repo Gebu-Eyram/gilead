@@ -1,11 +1,36 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   Briefcase,
   Building2,
@@ -18,6 +43,8 @@ import {
   Zap,
   Heart,
 } from "lucide-react";
+import { toast } from "sonner";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import type { JobFull } from "@/utils/types";
 
 const STATUS_VARIANT: Record<
@@ -55,6 +82,10 @@ function formatDate(dateStr: string) {
 export default function SharedJobPage() {
   const params = useParams<{ id: string }>();
   const jobId = params.id;
+  const [showApplyDialog, setShowApplyDialog] = useState(false);
+  const [showApplySheet, setShowApplySheet] = useState(false);
+
+  const { data: currentUser } = useCurrentUser();
 
   const {
     data: job,
@@ -70,6 +101,42 @@ export default function SharedJobPage() {
     staleTime: 1000 * 60 * 5,
     enabled: !!jobId,
   });
+
+  const { mutate: submitApplication, isPending: isApplying } = useMutation({
+    mutationFn: async () => {
+      if (!jobId || !currentUser?.user?.id) {
+        throw new Error("Missing job ID or user ID");
+      }
+      const res = await fetch("/api/applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          job_id: jobId,
+          user_id: currentUser.user.id,
+        }),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to submit application");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success("Application submitted successfully!");
+      setShowApplySheet(false);
+    },
+    onError: (err) => {
+      toast.error(err.message);
+    },
+  });
+
+  const handleApplyClick = () => {
+    if (!currentUser?.user) {
+      setShowApplyDialog(true);
+    } else {
+      setShowApplySheet(true);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -220,32 +287,10 @@ export default function SharedJobPage() {
             )}
           </div>
 
-          {/* Metadata row */}
-          {(job.department || job.openings) && (
-            <div className="flex flex-wrap gap-6 py-4">
-              {job.department && (
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase font-semibold mb-1">
-                    Department
-                  </p>
-                  <p>{job.department}</p>
-                </div>
-              )}
-              {job.openings && job.openings > 0 && (
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase font-semibold mb-1">
-                    Openings
-                  </p>
-                  <p>{job.openings}</p>
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Description */}
           {job.description && (
             <section>
-              <h2 className="text-2xl font-bold mb-4">About the Role</h2>
+              <h2 className="text-2xl font-medium mb-4">About the Role</h2>
               <div className="prose prose-sm max-w-none text-muted-foreground whitespace-pre-wrap">
                 {job.description}
               </div>
@@ -255,7 +300,7 @@ export default function SharedJobPage() {
           {/* Requirements */}
           {job.requirements && (
             <section>
-              <h2 className="text-2xl font-bold mb-4">Requirements</h2>
+              <h2 className="text-2xl font-medium mb-4">Requirements</h2>
               <div className="prose prose-sm max-w-none text-muted-foreground whitespace-pre-wrap">
                 {job.requirements}
               </div>
@@ -267,7 +312,7 @@ export default function SharedJobPage() {
             <section>
               <div className="flex items-center gap-2 mb-4">
                 <Heart className="size-6 text-primary" />
-                <h2 className="text-2xl font-bold">Benefits</h2>
+                <h2 className="text-2xl font-medium">Benefits</h2>
               </div>
               <div className="prose prose-sm max-w-none text-muted-foreground whitespace-pre-wrap">
                 {job.benefits}
@@ -278,7 +323,7 @@ export default function SharedJobPage() {
           {/* Company Info */}
           {job.company && (
             <section className="bg-muted/30 rounded-lg p-6">
-              <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+              <h2 className="text-2xl font-medium mb-4 flex items-center gap-2">
                 <Building2 className="size-6" />
                 About {job.company.name}
               </h2>
@@ -303,8 +348,13 @@ export default function SharedJobPage() {
 
           {/* CTA */}
           <div className="pt-6">
-            <Button size="lg" className="w-full sm:w-auto">
-              Apply Now
+            <Button
+              size="lg"
+              className="w-full sm:w-auto"
+              onClick={handleApplyClick}
+              disabled={isApplying}
+            >
+              {isApplying ? "Applying..." : "Apply Now"}
             </Button>
           </div>
         </div>
@@ -316,6 +366,72 @@ export default function SharedJobPage() {
           </p>
         </div>
       </div>
+
+      {/* Sign In Alert Dialog */}
+      <AlertDialog open={showApplyDialog} onOpenChange={setShowApplyDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sign in to apply</AlertDialogTitle>
+            <AlertDialogDescription>
+              You need to be signed in to submit an application. Create an
+              account or sign in to get started.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex gap-2 justify-end pt-2">
+            <AlertDialogCancel onClick={() => setShowApplyDialog(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <Button asChild>
+              <Link href="/signin">Sign In</Link>
+            </Button>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Apply Dialog */}
+      <Dialog open={showApplySheet} onOpenChange={setShowApplySheet}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Apply Now</DialogTitle>
+            <DialogDescription>
+              Submit your application for {job?.title}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <p className="text-sm font-semibold">Job Title</p>
+              <p className="text-sm text-muted-foreground">{job?.title}</p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-semibold">Company</p>
+              <p className="text-sm text-muted-foreground">
+                {job?.company?.name}
+              </p>
+            </div>
+            <div className="bg-muted/50 rounded-lg p-4">
+              <p className="text-sm text-muted-foreground">
+                By clicking apply, you'll be submitted as a candidate for this
+                position. You can track your application progress in your
+                dashboard.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-2 justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowApplySheet(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={() => submitApplication()} disabled={isApplying}>
+              {isApplying ? "Applying..." : "Submit Application"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
