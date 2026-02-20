@@ -21,6 +21,7 @@ import {
   Upload,
   FileText,
   Loader2,
+  Video,
 } from "lucide-react";
 import type { JobFull, ApplicationForApplicant } from "@/utils/types";
 
@@ -551,6 +552,16 @@ export default function ApplicantJobPage() {
                                   </div>
                                 )}
                               </div>
+                            ) : step.step_type === "Interview" &&
+                              application ? (
+                              <Button asChild>
+                                <Link
+                                  href={`/jobs/${jobId}/interview?stepId=${step.id}`}
+                                >
+                                  <Video className="size-4" />
+                                  Start Virtual Interview
+                                </Link>
+                              </Button>
                             ) : (
                               <div className="text-sm text-muted-foreground">
                                 Waiting to start this step...

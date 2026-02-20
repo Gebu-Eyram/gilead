@@ -107,6 +107,8 @@ export default function AdminJobPage({ params }: JobPageProps) {
     "accept" | "reject" | null
   >(null);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [interviewReviewSheetOpen, setInterviewReviewSheetOpen] =
+    useState(false);
   const [interviewType, setInterviewType] = useState<
     "technical" | "behavioral" | "case-study"
   >("technical");
@@ -371,6 +373,7 @@ export default function AdminJobPage({ params }: JobPageProps) {
             : "Application rejected successfully",
         );
         setReviewDialogOpen(false);
+        setInterviewReviewSheetOpen(false);
         setSelectedReview(null);
         setSelectedAppId(null);
         setPendingAction(null);
@@ -1388,7 +1391,11 @@ export default function AdminJobPage({ params }: JobPageProps) {
                                   onClick={() => {
                                     setSelectedReview(stepProgress);
                                     setSelectedAppId(app.id);
-                                    setReviewDialogOpen(true);
+                                    if (step.step_type === "Interview") {
+                                      setInterviewReviewSheetOpen(true);
+                                    } else {
+                                      setReviewDialogOpen(true);
+                                    }
                                   }}
                                   disabled={!stepProgress}
                                 >
@@ -1510,6 +1517,92 @@ export default function AdminJobPage({ params }: JobPageProps) {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Interview Review Sheet */}
+      <Sheet
+        open={interviewReviewSheetOpen}
+        onOpenChange={setInterviewReviewSheetOpen}
+      >
+        <SheetContent className="flex flex-col sm:max-w-2xl!">
+          <SheetHeader className="border-b">
+            <SheetTitle>Interview Review</SheetTitle>
+            <SheetDescription>
+              AI analysis of the virtual interview
+            </SheetDescription>
+          </SheetHeader>
+
+          {selectedReview && (
+            <div className="flex-1 overflow-y-auto space-y-6 p-4">
+              {/* Score */}
+              <div className="flex items-center justify-between rounded-xl border bg-muted/30 p-5">
+                <div>
+                  <p className="text-sm text-muted-foreground">Overall Score</p>
+                  <p className="text-4xl font-bold mt-1">
+                    {selectedReview.score ?? "—"}%
+                  </p>
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                  <Badge
+                    variant={
+                      selectedReview.status === "accepted"
+                        ? "default"
+                        : selectedReview.status === "rejected"
+                          ? "destructive"
+                          : "secondary"
+                    }
+                    className="capitalize text-sm px-3 py-1"
+                  >
+                    {selectedReview.status || "pending"}
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Score bar */}
+              {selectedReview.score !== null &&
+                selectedReview.score !== undefined && (
+                  <div className="w-full h-3 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-linear-to-r from-pink-500 via-orange-500 to-yellow-500 transition-all duration-700"
+                      style={{ width: `${selectedReview.score}%` }}
+                    />
+                  </div>
+                )}
+
+              {/* Full AI review */}
+              {selectedReview.review ? (
+                <div className="rounded-lg border bg-card p-5">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-4">
+                    Detailed Analysis
+                  </p>
+                  <div className="text-sm text-foreground prose prose-sm dark:prose-invert max-w-none [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-5 [&_h2]:mb-2 [&_h2]:border-b [&_h2]:pb-1 [&_p]:mb-2 [&_p]:leading-relaxed [&_ul]:list-disc [&_ul]:ml-4 [&_ol]:list-decimal [&_ol]:ml-4 [&_li]:mb-1 [&_li]:ml-2 [&_strong]:font-semibold [&_em]:italic">
+                    <ReactMarkdown>{selectedReview.review}</ReactMarkdown>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  No analysis available yet.
+                </p>
+              )}
+            </div>
+          )}
+
+          <SheetFooter className="border-t pt-4 flex flex-row items-center justify-end gap-2">
+            <Button
+              variant="destructive"
+              onClick={() => updateApplicationStatus({ status: "rejected" })}
+              disabled={pendingAction !== null}
+            >
+              {pendingAction === "reject" ? "Rejecting..." : "Reject"}
+            </Button>
+            <Button
+              onClick={() => updateApplicationStatus({ status: "accepted" })}
+              disabled={pendingAction !== null}
+            >
+              {pendingAction === "accept" ? "Accepting..." : "Accept"}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       {/* Review Details Sheet */}
       <Sheet open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
