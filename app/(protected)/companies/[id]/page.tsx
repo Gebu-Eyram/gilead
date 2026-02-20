@@ -21,6 +21,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,8 +39,10 @@ import {
   Building2,
   CalendarDays,
   ChevronRight,
+  Copy,
   MapPin,
   Plus,
+  Share2,
   Users,
 } from "lucide-react";
 import type {
@@ -89,6 +99,13 @@ function formatDate(dateStr: string) {
   });
 }
 
+function capitalize(str: string): string {
+  return str
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join("-");
+}
+
 // ─── Create Job Sheet ────────────────────────────────────────────────────────
 
 function CreateJobSheet({ companyId }: { companyId: string }) {
@@ -99,7 +116,7 @@ function CreateJobSheet({ companyId }: { companyId: string }) {
     description: "",
     type: "full-time",
     remote_status: "onsite",
-    salary_currency: "USD",
+    salary_currency: "GHC",
     openings: 1,
     requirements: undefined,
     benefits: undefined,
@@ -142,7 +159,9 @@ function CreateJobSheet({ companyId }: { companyId: string }) {
       <SheetContent className="flex flex-col sm:max-w-lg!">
         <SheetHeader className="border-b">
           <SheetTitle>Create Job</SheetTitle>
-          <SheetDescription>Add a new job posting to this company</SheetDescription>
+          <SheetDescription>
+            Add a new job posting to this company
+          </SheetDescription>
         </SheetHeader>
 
         <form
@@ -181,7 +200,7 @@ function CreateJobSheet({ companyId }: { companyId: string }) {
                 setFormData({ ...formData, type: v as JobType })
               }
             >
-              <SelectTrigger id="job-type" className="text-sm">
+              <SelectTrigger id="job-type" className="text-sm capitalize">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -224,7 +243,7 @@ function CreateJobSheet({ companyId }: { companyId: string }) {
                 setFormData({ ...formData, remote_status: v as RemoteStatus })
               }
             >
-              <SelectTrigger id="job-remote" className="text-sm">
+              <SelectTrigger id="job-remote" className="text-sm capitalize">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -239,10 +258,7 @@ function CreateJobSheet({ companyId }: { companyId: string }) {
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label
-                htmlFor="job-openings"
-                className="text-base font-semibold"
-              >
+              <Label htmlFor="job-openings" className="text-base font-semibold">
                 Number of Openings
               </Label>
             </div>
@@ -276,11 +292,13 @@ function CreateJobSheet({ companyId }: { companyId: string }) {
               onValueChange={(v) =>
                 setFormData({
                   ...formData,
-                  experience_level: (v || undefined) as ExperienceLevel | undefined,
+                  experience_level: (v || undefined) as
+                    | ExperienceLevel
+                    | undefined,
                 })
               }
             >
-              <SelectTrigger id="job-experience" className="text-sm">
+              <SelectTrigger id="job-experience" className="text-sm capitalize">
                 <SelectValue placeholder="Select..." />
               </SelectTrigger>
               <SelectContent>
@@ -295,7 +313,10 @@ function CreateJobSheet({ companyId }: { companyId: string }) {
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label htmlFor="job-department" className="text-base font-semibold">
+              <Label
+                htmlFor="job-department"
+                className="text-base font-semibold"
+              >
                 Department
               </Label>
               <span className="text-xs text-muted-foreground">Optional</span>
@@ -324,7 +345,9 @@ function CreateJobSheet({ companyId }: { companyId: string }) {
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    salary_min: e.target.value ? parseInt(e.target.value, 10) : undefined,
+                    salary_min: e.target.value
+                      ? parseInt(e.target.value, 10)
+                      : undefined,
                   })
                 }
                 className="text-sm"
@@ -336,14 +359,16 @@ function CreateJobSheet({ companyId }: { companyId: string }) {
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    salary_max: e.target.value ? parseInt(e.target.value, 10) : undefined,
+                    salary_max: e.target.value
+                      ? parseInt(e.target.value, 10)
+                      : undefined,
                   })
                 }
                 className="text-sm"
               />
             </div>
             <Select
-              value={formData.salary_currency ?? "USD"}
+              value={formData.salary_currency ?? "GHC"}
               onValueChange={(v) =>
                 setFormData({ ...formData, salary_currency: v })
               }
@@ -352,11 +377,11 @@ function CreateJobSheet({ companyId }: { companyId: string }) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="GHC">GHC</SelectItem>
                 <SelectItem value="USD">USD</SelectItem>
                 <SelectItem value="EUR">EUR</SelectItem>
                 <SelectItem value="GBP">GBP</SelectItem>
                 <SelectItem value="CAD">CAD</SelectItem>
-                <SelectItem value="AUD">AUD</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -407,10 +432,7 @@ function CreateJobSheet({ companyId }: { companyId: string }) {
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label
-                htmlFor="job-benefits"
-                className="text-base font-semibold"
-              >
+              <Label htmlFor="job-benefits" className="text-base font-semibold">
                 Benefits
               </Label>
               <span className="text-xs text-muted-foreground">Optional</span>
@@ -427,9 +449,7 @@ function CreateJobSheet({ companyId }: { companyId: string }) {
             />
           </div>
 
-          {error && (
-            <p className="text-sm text-destructive">{error.message}</p>
-          )}
+          {error && <p className="text-sm text-destructive">{error.message}</p>}
         </form>
 
         <SheetFooter className="border-t pt-4 flex flex-row items-center justify-end">
@@ -440,11 +460,7 @@ function CreateJobSheet({ companyId }: { companyId: string }) {
           >
             Cancel
           </Button>
-          <Button
-            type="submit"
-            form="create-job-form"
-            disabled={isPending}
-          >
+          <Button type="submit" form="create-job-form" disabled={isPending}>
             {isPending ? "Creating..." : "Save Job"}
           </Button>
         </SheetFooter>
@@ -456,6 +472,7 @@ function CreateJobSheet({ companyId }: { companyId: string }) {
 // ─── Job Card ────────────────────────────────────────────────────────────────
 
 function JobCard({ job }: { job: JobFull & { applications?: unknown[] } }) {
+  const [shareOpen, setShareOpen] = useState(false);
   const appCount = Array.isArray(job.applications)
     ? job.applications.length
     : null;
@@ -465,89 +482,126 @@ function JobCard({ job }: { job: JobFull & { applications?: unknown[] } }) {
       ? `${job.salary_min ?? "?"}-${job.salary_max ?? "?"} ${job.salary_currency}`
       : null;
 
+  const shareUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/shared/j/${job.id}`;
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(shareUrl);
+    toast.success("Share link copied!");
+    setShareOpen(false);
+  };
+
   return (
-    <Link
-      href={`/jobs/${job.id}`}
-      className="group rounded-lg border bg-card p-5 hover:shadow-md transition-shadow flex flex-col gap-3"
-    >
-      {/* Header: Title, Type, Status */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="space-y-1 min-w-0">
-          <h3 className="font-semibold text-base leading-tight group-hover:text-primary transition-colors">
-            {job.title}
-          </h3>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span className="capitalize">{job.type.replace("-", " ")}</span>
-            {job.department && (
-              <>
-                <span>•</span>
-                <span>{job.department}</span>
-              </>
-            )}
+    <div className="rounded-lg border bg-card p-5 hover:shadow-md transition-shadow flex flex-col gap-3">
+      {/* Share Dialog */}
+      <Dialog open={shareOpen} onOpenChange={setShareOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Share Job</DialogTitle>
+            <DialogDescription>
+              Copy the link below to share this job posting
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2">
+            <Input value={shareUrl} readOnly className="text-sm" />
+            <Button size="sm" onClick={copyToClipboard} className="shrink-0">
+              <Copy className="size-4 mr-1" />
+              Copy
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Link
+        href={`/jobs/${job.id}`}
+        className="group rounded-lg -m-5 p-5 hover:bg-muted/50 transition-colors flex flex-col gap-3"
+      >
+        {/* Header: Title, Type, Status */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="space-y-1 min-w-0 flex-1">
+            <h3 className="font-semibold text-base leading-tight group-hover:text-primary transition-colors">
+              {job.title}
+            </h3>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <span>{capitalize(job.type)}</span>
+              {job.department && (
+                <>
+                  <span>•</span>
+                  <span>{job.department}</span>
+                </>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Badge variant={STATUS_VARIANT[job.status]} className="capitalize">
+              {STATUS_LABEL[job.status]}
+            </Badge>
           </div>
         </div>
-        <Badge
-          variant={STATUS_VARIANT[job.status]}
-          className="shrink-0 capitalize"
-        >
-          {STATUS_LABEL[job.status]}
-        </Badge>
-      </div>
 
-      {/* Description preview */}
-      {job.description && (
-        <p className="text-sm text-muted-foreground line-clamp-2">
-          {job.description}
-        </p>
-      )}
+        {/* Description preview */}
+        {job.description && (
+          <p className="text-sm text-muted-foreground line-clamp-2">
+            {job.description}
+          </p>
+        )}
 
-      {/* Meta info: Location, Remote, Experience, Salary, Openings */}
-      <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground py-2">
-        {job.location && (
-          <span className="flex items-center gap-1">
-            <MapPin className="size-3.5 shrink-0" />
-            {job.location}
-          </span>
-        )}
-        {job.remote_status && (
-          <span className="capitalize">{job.remote_status}</span>
-        )}
-        {job.experience_level && (
-          <span className="capitalize">
-            {job.experience_level.replace("_", " ")}
-          </span>
-        )}
-        {salaryStr && <span>{salaryStr}</span>}
-        {job.openings && job.openings > 0 && (
-          <span>
-            {job.openings} {job.openings === 1 ? "opening" : "openings"}
-          </span>
-        )}
-      </div>
+        {/* Meta info: Location, Remote, Experience, Salary, Openings */}
+        <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground py-2">
+          {job.location && (
+            <span className="flex items-center gap-1">
+              <MapPin className="size-3.5 shrink-0" />
+              {job.location}
+            </span>
+          )}
+          {job.remote_status && <span>{capitalize(job.remote_status)}</span>}
+          {job.experience_level && (
+            <span>{capitalize(job.experience_level)}</span>
+          )}
+          {salaryStr && <span>{salaryStr}</span>}
+          {job.openings && job.openings > 0 && (
+            <span>
+              {job.openings} {job.openings === 1 ? "opening" : "openings"}
+            </span>
+          )}
+        </div>
 
-      {/* Footer: Posted date, Steps, Applicants, Navigation arrow */}
-      <div className="flex items-center gap-3 mt-auto pt-2 border-t text-xs text-muted-foreground flex-wrap">
-        <span className="flex items-center gap-1">
-          <CalendarDays className="size-3.5" />
-          {formatDate(job.date_posted)}
-        </span>
-        {job.recruitment_steps.length > 0 && (
+        {/* Footer: Posted date, Steps, Applicants, Navigation arrow */}
+        <div className="flex items-center gap-3 mt-auto pt-2 border-t text-xs text-muted-foreground flex-wrap">
           <span className="flex items-center gap-1">
-            <Briefcase className="size-3.5" />
-            {job.recruitment_steps.length}{" "}
-            {job.recruitment_steps.length === 1 ? "step" : "steps"}
+            <CalendarDays className="size-3.5" />
+            {formatDate(job.date_posted)}
           </span>
-        )}
-        {appCount !== null && (
-          <span className="flex items-center gap-1">
-            <Users className="size-3.5" />
-            {appCount}{" "}
-            {appCount === 1 ? "applicant" : "applicants"}
-          </span>
-        )}
-        <ChevronRight className="size-3.5 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-      </div>
-    </Link>
+          {job.recruitment_steps.length > 0 && (
+            <span className="flex items-center gap-1">
+              <Briefcase className="size-3.5" />
+              {job.recruitment_steps.length}{" "}
+              {job.recruitment_steps.length === 1 ? "step" : "steps"}
+            </span>
+          )}
+          {appCount !== null && (
+            <span className="flex items-center gap-1">
+              <Users className="size-3.5" />
+              {appCount} {appCount === 1 ? "applicant" : "applicants"}
+            </span>
+          )}
+          <ChevronRight className="size-3.5 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+        </div>
+      </Link>
+
+      {/* Share Button */}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={(e) => {
+          e.preventDefault();
+          setShareOpen(true);
+        }}
+        className="w-full gap-2"
+      >
+        <Share2 className="size-4" />
+        Share Job
+      </Button>
+    </div>
   );
 }
 
@@ -563,16 +617,14 @@ export default function CompanyDetailPage() {
     error: companyError,
   } = useQuery<CompanyWithMembers>({
     queryKey: ["company", companyId],
-    queryFn: () =>
-      fetch(`/api/companies/${companyId}`).then((r) => r.json()),
+    queryFn: () => fetch(`/api/companies/${companyId}`).then((r) => r.json()),
     staleTime: 1000 * 60 * 5,
     enabled: !!companyId,
   });
 
-  const {
-    data: jobs = [],
-    isLoading: jobsLoading,
-  } = useQuery<(JobFull & { applications?: unknown[] })[]>({
+  const { data: jobs = [], isLoading: jobsLoading } = useQuery<
+    (JobFull & { applications?: unknown[] })[]
+  >({
     queryKey: ["jobs", companyId],
     queryFn: () =>
       fetch(`/api/jobs?company_id=${companyId}`).then((r) => r.json()),
@@ -616,10 +668,12 @@ export default function CompanyDetailPage() {
   return (
     <div className="min-h-screen bg-background p-8">
       <div className="max-w-5xl mx-auto space-y-8">
-
         {/* Breadcrumb */}
         <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <Link href="/companies" className="hover:text-foreground transition-colors">
+          <Link
+            href="/companies"
+            className="hover:text-foreground transition-colors"
+          >
             Companies
           </Link>
           <ChevronRight className="size-3.5" />

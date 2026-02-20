@@ -13,7 +13,7 @@ export function useCurrentUser() {
     queryFn: async (): Promise<CurrentUser> => {
       const { supabase } = await import("@/utils/supabase");
       const { data } = await supabase.auth.getUser();
-      
+
       return {
         user: data.user ?? null,
         role: (data.user?.user_metadata?.role as UserRole) ?? null,

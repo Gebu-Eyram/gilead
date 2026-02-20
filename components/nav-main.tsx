@@ -6,6 +6,7 @@ import {
   FileText,
   GalleryVerticalEnd,
   Home,
+  UserCircle,
   type LucideIcon,
 } from "lucide-react";
 import { useMemo } from "react";
@@ -56,6 +57,11 @@ export function NavMain() {
             title: "Companies",
             url: "/companies",
             icon: GalleryVerticalEnd,
+          },
+          {
+            title: "Users",
+            url: "/users",
+            icon: UserCircle,
           },
         ];
       case "admin":
